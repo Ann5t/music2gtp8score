@@ -99,10 +99,11 @@ def _note(ids: _Ids, drum_key: str, velocity: int) -> dict:
     }
 
 
-def _beat(ids: _Ids, start_ticks: int, duration: int, dots: int, notes: list[dict]) -> dict:
+def _beat(ids: _Ids, start_ticks: int, duration: int, dots: int, notes: list[dict],
+          isempty: bool = False, beam_dir: int | None = None) -> dict:
     ticks = _TICKS[duration] * (3 if dots else 2) // 2
     return {
-        "id": ids(), "notes": notes, "isempty": not notes, "whammystyle": 0, "ottava": 2,
+        "id": ids(), "notes": notes, "isempty": isempty, "whammystyle": 0, "ottava": 2,
         "islegatoorigin": False, "duration": duration, "automations": [], "dots": dots,
         "fade": 0, "lyrics": None, "pop": False, "slap": False, "tap": False, "text": None,
         "slashed": False, "deadslapped": False, "brushtype": 0, "brushduration": 0,
@@ -110,10 +111,15 @@ def _beat(ids: _Ids, start_ticks: int, duration: int, dots: int, notes: list[dic
         "whammybartype": 0, "vibrato": 0, "chordid": None, "gracetype": 0, "pickstroke": 0,
         "crescendo": 0, "displaystart": start_ticks, "playbackstart": start_ticks,
         "displayduration": ticks, "playbackduration": ticks, "golpe": 0, "dynamics": 4,
-        "invertbeamdirection": False, "preferredbeamdirection": None, "beamingmode": 0,
+        "invertbeamdirection": False, "preferredbeamdirection": beam_dir, "beamingmode": 0,
         "wahpedal": 0, "barrefret": -1, "barreshape": 0, "rasgueado": 0,
         "showtimer": False, "timer": None,
     }
+
+
+def _placeholder_beat(ids: _Ids) -> dict:
+    """Invisible filler for unused voices (GP7 convention: isempty=True quarter)."""
+    return _beat(ids, 0, 4, 0, [], isempty=True)
 
 
 def _runs(length: int) -> list[int]:
@@ -124,6 +130,12 @@ def _runs(length: int) -> list[int]:
             out.append(d)
             length -= d
     return out
+
+
+def _display_tempo(t: float) -> float:
+    """Show 82 for 82.02; keep one decimal when genuinely fractional."""
+    r = round(t)
+    return float(r) if abs(t - r) < 0.3 else round(t, 1)
 
 
 def _voice_beats(ids: _Ids, grid: dict[int, list[QuantizedNote]], resolution: int) -> list[dict]:
@@ -141,9 +153,9 @@ def _voice_beats(ids: _Ids, grid: dict[int, list[QuantizedNote]], resolution: in
             start = sum(_TICKS[b["duration"]] * (3 if b["dots"] else 2) // 2 for b in beats)
             if s in grid:
                 notes = [_note(ids, n.drum, n.velocity) for n in grid[s]]
+                beats.append(_beat(ids, start, duration, dots, notes))
             else:
-                notes = []
-            beats.append(_beat(ids, start, duration, dots, notes))
+                beats.append(_beat(ids, start, duration, dots, [], beam_dir=0))  # visible rest
             s += d
     return beats
 
@@ -172,7 +184,7 @@ def build_model(notes: list[QuantizedNote], tempo_map: TempoMap, rules: LayoutRu
               "tempoautomations": [], "start": i * resolution * TICKS_PER_QUARTER // 4,
               "isanacrusis": False, "displayscale": 1, "displaywidth": -1}
         if i == 0:
-            mb["tempoautomations"] = [{"islinear": False, "type": 0, "value": round(tempo_map.tempo, 2),
+            mb["tempoautomations"] = [{"islinear": False, "type": 0, "value": _display_tempo(tempo_map.tempo),
                                        "ratioposition": 0, "text": "", "isvisible": True}]
         if i in sections:
             mb["section"] = {"marker": chr(ord("A") + len([k for k in sections if k < i])), "text": sections[i]}
@@ -182,10 +194,11 @@ def build_model(notes: list[QuantizedNote], tempo_map: TempoMap, rules: LayoutRu
     for i in range(n_bars):
         voice_grids = grids.get(i, {})
         voices = []
-        for vi in range(4):  # house style: 0 cymbals, 1 drums, 2/3 always empty
-            beats = _voice_beats(ids, voice_grids.get(vi, {}), resolution) if vi in voice_grids else []
-            if vi in (rules.cymbal_voice, rules.drum_voice) and vi not in voice_grids:
-                beats = _voice_beats(ids, {}, resolution)  # whole-bar rest keeps the voice alive
+        for vi in range(4):  # house style: 0 cymbals, 1 drums, 2/3 unused (placeholder)
+            if vi in (rules.cymbal_voice, rules.drum_voice):
+                beats = _voice_beats(ids, voice_grids.get(vi, {}), resolution)
+            else:
+                beats = [_placeholder_beat(ids)]
             voices.append({"id": ids(), "beats": beats})
         bars.append({"id": i, "clef": 0, "clefottava": 2, "voices": voices, "similemark": 0,
                      "displayscale": 1, "displaywidth": -1, "sustainpedals": [], "barlineleft": 0,
