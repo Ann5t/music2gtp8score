@@ -10,6 +10,7 @@ voices 2/3 empty — exactly like the reference scores.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -226,6 +227,42 @@ def build_model(notes: list[QuantizedNote], tempo_map: TempoMap, rules: LayoutRu
     }
 
 
+def _patch_playback_sound(gp_path: Path, sound_path: str = "Drums/Drums/Drumkit",
+                          sound_name: str = "Drumkit") -> None:
+    """Gp7Exporter emits a generic MIDI fallback sound (Path=Midi/0), so Guitar
+    Pro plays the score with a piano-ish GM voice instead of the RSE drum kit.
+    Rewrite the Sound block inside Content/score.gpif in place."""
+    import zipfile
+
+    with zipfile.ZipFile(gp_path, "r") as z:
+        entries = [(i, z.read(i.filename)) for i in z.infolist()]
+    patched = 0
+    out_entries = []
+    for info, data in entries:
+        if info.filename == "Content/score.gpif":
+            xml = data.decode("utf-8")
+            patched = 0
+            for pattern, repl in [
+                (r"<Name><!\[CDATA\[Track_\d+_Initial\]\]></Name>",
+                 f"<Name><![CDATA[{sound_name}]]></Name>"),
+                (r"<Label><!\[CDATA\[Track_\d+_Initial\]\]></Label>",
+                 f"<Label><![CDATA[{sound_name}]]></Label>"),
+                (r"<Path><!\[CDATA\[Midi/\d+\]\]></Path>",
+                 f"<Path><![CDATA[{sound_path}]]></Path>"),
+            ]:
+                xml, n = re.subn(pattern, repl, xml)
+                patched += n
+            data = xml.encode("utf-8")
+        out_entries.append((info, data))
+    if patched == 0:
+        print("[notate] warning: no Midi/* sound path found to patch")
+    tmp = gp_path.with_suffix(".tmp")
+    with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as z:
+        for info, data in out_entries:
+            z.writestr(info, data)
+    tmp.replace(gp_path)
+
+
 def write_gp(model: dict, out_path: str | Path, tools_dir: str | Path | None = None) -> dict:
     """Export the model to .gp via tools/build_gp.mjs; returns the verification summary."""
     node = shutil.which("node")
@@ -243,6 +280,8 @@ def write_gp(model: dict, out_path: str | Path, tools_dir: str | Path | None = N
     try:
         proc = subprocess.run([node, str(script), model_path, str(out_path)],
                               check=True, capture_output=True, text=True, encoding="utf-8")
-        return json.loads(proc.stdout.strip().splitlines()[-1])
+        result = json.loads(proc.stdout.strip().splitlines()[-1])
+        _patch_playback_sound(out_path)
+        return result
     finally:
         Path(model_path).unlink(missing_ok=True)
