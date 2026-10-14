@@ -84,7 +84,8 @@ def main() -> None:
         gt = {stem: gt_notes(gt_path, stem) for stem in STEMS}
         data[song] = {"envs": envs, "gt": gt}
 
-    sec_per_slot = lambda tempo: 60.0 / tempo / 4  # noqa: E731
+    def sec_per_slot(tempo: float) -> float:
+        return 60.0 / tempo / 4
 
     for stem in STEMS:
         print(f"\n=== {stem} (grid: {len(GRID['delta']) * len(GRID['wait']) * len(GRID['strength_pct'])} combos)")

@@ -32,14 +32,14 @@ class DrumEvent:
     velocity: int     # 1..127
 
 
-def _detect_onsets(y, sr, hop: int = 512):
+def _detect_onsets(y, sr, hop: int = 512, delta: float = 0.06, wait: int = 3):
     import librosa
     import numpy as np
 
     onset_env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=hop)
     frames = librosa.onset.onset_detect(
         y=y, sr=sr, hop_length=hop, onset_envelope=onset_env,
-        backtrack=True, delta=0.06, wait=3, pre_max=3, post_max=3, pre_avg=3, post_avg=5,
+        backtrack=True, delta=delta, wait=wait, pre_max=3, post_max=3, pre_avg=3, post_avg=5,
     )
     times = librosa.frames_to_time(frames, sr=sr, hop_length=hop)
     strengths = onset_env[np.clip(frames, 0, len(onset_env) - 1)]
@@ -77,17 +77,25 @@ def transcribe_stems(stems_dir: str | Path, rules: LayoutRules,
                      hh_key: str = "hihat_closed") -> list[DrumEvent]:
     """Onset-detect every mapped stem; merge into one sorted event list."""
     import librosa
+    import numpy as np
 
     stems_dir = Path(stems_dir)
     events: list[DrumEvent] = []
     for category, stem_names in rules.stem_map.items():
+        params = rules.onset.get(category, {})
+        delta = float(params.get("delta", 0.06))
+        wait = int(params.get("wait", 3))
+        pct = float(params.get("strength_pct", 0))
         for stem in stem_names:
             wav = stems_dir / f"{stem}.wav"
             if not wav.exists():
                 print(f"[transcribe] stem missing, skipped: {wav.name}")
                 continue
             y, sr = librosa.load(wav, sr=22050, mono=True)
-            times, strengths, _ = _detect_onsets(y, sr)
+            times, strengths, _ = _detect_onsets(y, sr, 512, delta, wait)
+            if pct and len(strengths):
+                keep = strengths >= np.percentile(strengths, pct)
+                times, strengths = times[keep], strengths[keep]
             for t, v in zip(times, _velocities(strengths, rules.velocity)):
                 if category == "toms":
                     key = _tom_key(y, sr, float(t))

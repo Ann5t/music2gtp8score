@@ -51,6 +51,14 @@ stems:                    # 转谱输入：MSST 53 轨 stem 名 -> 鼓件类别
   kick: [kick]
   snare: [snare]
   hihat: [hh]
-  toms: [toms]
+  # toms 轨默认关闭：53 轨模型把镲片洗进 toms 轨，onset 基线 F1 仅 0.21
+  # （9 倍误检）。宁缺毋滥，等 ML 分类器再上。要开启就取消注释：
+  # toms: [toms]
   # 53 轨模型没有 crash/ride 独立轨（镲片大概率留在 drums 残轨），
   # v1 不检测镲片；cymbals_from_drums_residual 是后续攻关项。
+
+onset:                    # 逐轨 onset 检测参数（由 evals/tune_onsets.py 对 4 首参考谱调优）
+  kick:  {delta: 0.03, wait: 8, strength_pct: 0}
+  snare: {delta: 0.03, wait: 8, strength_pct: 0}
+  hihat: {delta: 0.07, wait: 8, strength_pct: 0}
+  toms:  {delta: 0.07, wait: 8, strength_pct: 50}

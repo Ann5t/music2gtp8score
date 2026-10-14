@@ -46,7 +46,13 @@ class LayoutRules:
     bars_per_system: int = 4
     drum_map: dict[str, int] = field(default_factory=lambda: dict(DEFAULT_DRUM_MAP))
     stem_map: dict[str, list[str]] = field(default_factory=lambda: {
-        "kick": ["kick"], "snare": ["snare"], "hihat": ["hh"], "toms": ["toms"],
+        "kick": ["kick"], "snare": ["snare"], "hihat": ["hh"],
+    })
+    onset: dict[str, dict] = field(default_factory=lambda: {
+        "kick": {"delta": 0.03, "wait": 8, "strength_pct": 0},
+        "snare": {"delta": 0.03, "wait": 8, "strength_pct": 0},
+        "hihat": {"delta": 0.07, "wait": 8, "strength_pct": 0},
+        "toms": {"delta": 0.07, "wait": 8, "strength_pct": 50},
     })
 
     def voice_of(self, drum_key: str) -> int:
@@ -82,4 +88,8 @@ class LayoutRules:
             r.drum_map.update({k: int(v) for k, v in cfg["drums"].items()})
         if cfg.get("stems"):
             r.stem_map.update({k: list(v) for k, v in cfg["stems"].items()})
+        if cfg.get("onset"):
+            for k, v in cfg["onset"].items():
+                r.onset.setdefault(k, {}).update({kk: float(vv) if kk == "delta" else vv
+                                                  for kk, vv in v.items()})
         return r
