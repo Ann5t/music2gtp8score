@@ -74,7 +74,7 @@ def separate(audio_path: str | Path, out_dir: str | Path, cfg: MsstConfig | None
     problems = cfg.check()
     if problems:
         raise RuntimeError("MSST is not usable:\n  " + "\n  ".join(problems))
-    audio_path, out_dir = Path(audio_path), Path(out_dir)
+    audio_path, out_dir = Path(audio_path).resolve(), Path(out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory(prefix="m2g_in_") as tmp:
