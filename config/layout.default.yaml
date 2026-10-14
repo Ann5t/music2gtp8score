@@ -1,0 +1,56 @@
+# music2gtp8score 排版标准（默认版）
+# 从 4 份真实鼓谱（郭源潮 / 大石碎胸口 / 杀死那个石家庄人 / 我等你们在崇明海边）实证归纳。
+# 复制此文件改成你自己的规则，用 --config 指定。
+version: 1
+
+staff:
+  tablature: false        # 纯五线谱（实证：showTablature=false）
+  line_count: 5
+
+voices:                   # 两声部鼓谱（实证：镲类一声部、鼓类一声部）
+  cymbal_voice: 0         #   踩镲/吊镲/叮叮镲
+  drum_voice: 1           #   底鼓/军鼓/通鼓/踩锤镲
+
+grid:
+  resolution: 16          # 量化网格：16 分音符（4/4）
+  min_gap_slots: 1        # 同鼓件最小间隔（防 onset 重影）
+
+dynamics:
+  show: false             # 谱面隐藏力度记号（实证：stylesheet.hidedynamics=true）
+  velocity: 96            # v1 统一力度（实证：全曲基本一个力度层）
+
+techniques:
+  plain_notes_only: true  # 用户决策：所有音符按普通音符写，不判鬼音/滚奏/开闭镲
+
+barlines:
+  plain_only: true        # 全曲普通小节线（实证：无双纵线、无反复记号）
+
+sections:
+  enabled: true           # 段落标记（实证：前奏/主歌/副歌/桥段/独奏/总结）
+  auto_detect: false      # v1 不做自动段落识别；可在此文件手工指定
+  manual: []              # 例：[{bar: 0, text: 前奏}, {bar: 8, text: 主歌}]
+
+page:
+  bars_per_system: 4      # 实证：systemsLayout default=4
+
+drums:                    # 类别 -> General MIDI 音高
+  kick: 36
+  snare: 38
+  hihat_closed: 42
+  hihat_open: 46
+  hihat_pedal: 44
+  crash: 49
+  ride: 51
+  tom_very_high: 50
+  tom_high: 48
+  tom_mid: 47
+  tom_low: 45
+  tom_very_low: 43
+
+stems:                    # 转谱输入：MSST 53 轨 stem 名 -> 鼓件类别
+  kick: [kick]
+  snare: [snare]
+  hihat: [hh]
+  toms: [toms]
+  # 53 轨模型没有 crash/ride 独立轨（镲片大概率留在 drums 残轨），
+  # v1 不检测镲片；cymbals_from_drums_residual 是后续攻关项。

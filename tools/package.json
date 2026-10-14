@@ -1,0 +1,10 @@
+{
+  "name": "music2gtp8score-tools",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "GP7 writer bridge for music2gtp8score (alphaTab).",
+  "dependencies": {
+    "@coderline/alphatab": "^1.8.4"
+  }
+}

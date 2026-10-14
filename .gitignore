@@ -1,0 +1,36 @@
+# --- local media & pipeline artifacts (copyright / size: never commit) ---
+*.mp3
+*.wav
+*.flac
+*.ogg
+*.aif*
+*.gp
+*.gp3
+*.gp4
+*.gp5
+*.gpx
+*.pdf
+out/
+stems/
+models/
+
+# --- third-party code (cloned, not vendored into git) ---
+vendor/
+
+# --- python ---
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+
+# --- node (gp writer) ---
+node_modules/
+
+# --- os / editors ---
+Thumbs.db
+.DS_Store
+.vscode/
+.idea/
